@@ -1,0 +1,85 @@
+version: "3"
+services:
+
+
+  boosta-auth-proxy:
+    image: nginx:alpine
+    container_name: auth-proxy
+    ports:
+      - '8008:80'
+    volumes:
+      - ./../../nginx/nginx.dev.conf:/etc/nginx/nginx.conf
+    restart: 'unless-stopped'
+    depends_on:
+      - boosta-auth-app
+      - boosta-auth-pgadmin
+
+  # * Requests are being routed into the boosta-auth-app container from the nginx-proxy
+  boosta-auth-app:
+    image: boosta-auth-app
+    build:
+      context: ../..
+      target: development-build-stage # ! change this to production-build-stage for staging and production environment
+      dockerfile: docker/Dockerfile.dev
+    container_name: auth-server
+    command: "npm run start:dev"
+    volumes:
+      - /usr/boosta/auth/node_modules
+      - ../../:/usr/boosta/auth
+
+    restart: 'unless-stopped'
+    depends_on:
+      - boosta-auth-db
+      - boosta-rabbitmq
+
+    env_file: # ! use environment on staging/production environment
+      - ../../.env # ? this must be located at the root of the project
+
+    # override what's stored in the .env file
+    environment:
+      - POSTGRES_HOST=
+      - POSTGRES_PORT=
+      - POSTGRES_PASSWORD=
+      - RABBITMQ_HOST=
+      - RABBITMQ_QUEUE_NAME=
+      - ADMIN_ACCESS_CODE=
+
+
+  boosta-auth-db:
+    container_name: boosta-auth-db
+    image: postgres:latest
+    ports:
+    - "5449:5432"
+    volumes:
+    - ~/boosta-files/auth/postgres:/var/lib/postgresql/data
+    env_file:
+      - .docker.env
+
+
+  # ? NOTE: to connect in this pgadmin container, use the container's name i.e postgres but localhost in host
+  boosta-auth-pgadmin:
+    container_name: boosta-auth-pgadmin
+    image: dpage/pgadmin4
+    ports:
+    - "9009:80"
+    volumes:
+    - ~/boosta-files/auth/pgadmin:/root/.pgadmin
+    env_file:
+    - .docker.env
+
+  boosta-rabbitmq:
+    image: rabbitmq:3.9-management-alpine
+    container_name: boosta-rabbitmq
+    hostname: boosta-rabbitmq
+    volumes:
+      - ~/boosta-files/auth/rabbitmq:/bitnami
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    env_file:
+      - .rabbitmq.env
+ 
+networks:
+  default:
+    external: true
+    name: boosta-network

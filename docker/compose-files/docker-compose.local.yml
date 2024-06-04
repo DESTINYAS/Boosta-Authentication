@@ -1,0 +1,42 @@
+version: "3"
+services:
+
+  boosta-auth-db:
+    container_name: boosta-auth-db
+    image: postgres:latest
+    ports:
+    - "5449:5432"
+    volumes:
+    - ./dev-data/postgres:/data/postgres
+    env_file:
+      - .docker.env
+
+
+  # ? NOTE: to connect in this pgadmin container, use the container's name i.e postgres but localhost in host
+  boosta-auth-pgadmin:
+    container_name: boosta-auth-pgadmin
+    image: dpage/pgadmin4
+    ports:
+    - "9009:80"
+    volumes:
+    - ./dev-data/pgadmin:/root/.pgadmin
+    env_file:
+    - .docker.env
+
+  boosta-rabbitmq:
+    image: rabbitmq:3.9-management-alpine
+    # image: rabbitmq:3-management
+    container_name: boosta-rabbitmq
+    hostname: boosta-rabbitmq
+    volumes:
+      - /var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    env_file:
+      - .rabbitmq.env
+ 
+networks:
+  default:
+    external: true
+    name: boosta-network
